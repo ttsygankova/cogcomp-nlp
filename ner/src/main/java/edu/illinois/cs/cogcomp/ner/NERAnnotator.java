@@ -3,7 +3,7 @@
  * the LICENSE file in the root folder for details. Copyright (c) 2016
  *
  * Developed by: The Cognitive Computation Group University of Illinois at Urbana-Champaign
- * http://cogcomp.cs.illinois.edu/
+ * http://cogcomp.org/
  */
 package edu.illinois.cs.cogcomp.ner;
 
@@ -25,6 +25,7 @@ import edu.illinois.cs.cogcomp.core.datastructures.textannotation.TextAnnotation
 import edu.illinois.cs.cogcomp.core.utilities.configuration.Configurator;
 import edu.illinois.cs.cogcomp.core.utilities.configuration.ResourceManager;
 import edu.illinois.cs.cogcomp.lbjava.learn.Lexicon;
+import edu.illinois.cs.cogcomp.lbjava.learn.SparseNetworkLearner;
 import edu.illinois.cs.cogcomp.lbjava.parse.LinkedVector;
 import edu.illinois.cs.cogcomp.ner.ExpressiveFeatures.ExpressiveFeaturesAnnotator;
 import edu.illinois.cs.cogcomp.ner.InferenceMethods.Decoder;
@@ -46,6 +47,11 @@ public class NERAnnotator extends Annotator {
 
     /** our specific logger. */
     private final Logger logger = LoggerFactory.getLogger(NERAnnotator.class);
+
+    /** params were once static, preventing mult-model runtimes, but now are stored here. Params
+     * include the models, gazetteers and brown clusters.
+     */
+    private ParametersForLbjCode params = null;
 
     /**
      * @param nonDefaultConfigValues a configuration file specifying non-default parameters for the
@@ -82,7 +88,9 @@ public class NERAnnotator extends Annotator {
                 AnnotatorConfigurator.IS_LAZILY_INITIALIZED.key, Configurator.TRUE), nonDefaultRm);
     }
 
-
+    /** this is used to sync loading models. */
+    static final String LOADING_MODELS = "LOADING_MODELS";
+    
     /**
      * Superclass calls this method either on instantiation or at first call to getView(). Logging
      * has been disabled because non-static logger is not initialized at the time this is called if
@@ -98,11 +106,12 @@ public class NERAnnotator extends Annotator {
             nerRm = new NerOntonotesConfigurator().getConfig(nerRm);
         else
             nerRm = new NerBaseConfigurator().getConfig(nerRm);
-        ParametersForLbjCode.currentParameters.forceNewSentenceOnLineBreaks = false;
-        Parameters.readConfigAndLoadExternalData(nerRm);
-        
+        this.params = Parameters.readConfigAndLoadExternalData(nerRm);
+        this.params.forceNewSentenceOnLineBreaks = false;
         // load the models.
-        ModelLoader.load(nerRm, viewName);
+        synchronized (LOADING_MODELS) {
+            ModelLoader.load(nerRm, viewName, false, this.params);
+       }
     }
 
     /**
@@ -123,7 +132,7 @@ public class NERAnnotator extends Annotator {
             LinkedVector words = new LinkedVector();
             for (String w : wtoks) {
                 if (w.length() > 0) {
-                    NEWord.addTokenToSentence(words, w, "unlabeled");
+                    NEWord.addTokenToSentence(words, w, "unlabeled", this.params);
                     tokenindices[neWordIndex] = tokenIndex;
                     neWordIndex++;
                 } else {
@@ -138,9 +147,8 @@ public class NERAnnotator extends Annotator {
         // Do the annotation.
         Data data = new Data(new NERDocument(sentences, "input"));
         try {
-            ExpressiveFeaturesAnnotator.annotate(data);
-            Decoder.annotateDataBIO(data, (NETaggerLevel1) ParametersForLbjCode.currentParameters.taggerLevel1, 
-                (NETaggerLevel2) ParametersForLbjCode.currentParameters.taggerLevel2);
+            ExpressiveFeaturesAnnotator.annotate(data, this.params);
+            Decoder.annotateDataBIO(data, params);
         } catch (Exception e) {
             logger.error("Cannot annotate the text, the exception was: ", e);
             return;
@@ -228,7 +236,7 @@ public class NERAnnotator extends Annotator {
         if (!isInitialized()) {
             doInitialize();
         }
-        Lexicon labelLexicon =  ParametersForLbjCode.currentParameters.taggerLevel1.getLabelLexicon();
+        Lexicon labelLexicon =  this.params.taggerLevel1.getLabelLexicon();
         Set<String> tagSet = new HashSet<String>();
         for (int i =0; i < labelLexicon.size(); ++i) {
             tagSet.add(labelLexicon.lookupKey(i).getStringValue());

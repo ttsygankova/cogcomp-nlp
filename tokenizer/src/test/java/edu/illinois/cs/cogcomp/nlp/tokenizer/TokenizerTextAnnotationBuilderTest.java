@@ -3,7 +3,7 @@
  * the LICENSE file in the root folder for details. Copyright (c) 2016
  *
  * Developed by: The Cognitive Computation Group University of Illinois at Urbana-Champaign
- * http://cogcomp.cs.illinois.edu/
+ * http://cogcomp.org/
  */
 package edu.illinois.cs.cogcomp.nlp.tokenizer;
 
@@ -32,13 +32,16 @@ public class TokenizerTextAnnotationBuilderTest {
                 "Mr. Dawkins -- a liberal professor -- doesn't like fundamentalists.   ";
         final String sentB = "He is intolerant of intolerance!";
 
-        final int refSentStartOffset = 71;
-        final int refSentEndOffset = 103;
+        String lineSep = System.lineSeparator();
+        int lineSepLength = lineSep.length();
 
-        final int refTokStartOffset = 77;
+        final int refSentStartOffset = 70 + lineSepLength;
+        final int refSentEndOffset = 102 + lineSepLength;
+
+        final int refTokStartOffset = 76 + lineSepLength;
         final int refTokEndOffset = refTokStartOffset + 10;
 
-        final String text = sentA + System.lineSeparator() + sentB;
+        final String text = sentA + lineSep + sentB;
 
         TextAnnotation ta = bldr.createTextAnnotation("test", "test", text);
 

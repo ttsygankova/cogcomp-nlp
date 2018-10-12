@@ -3,7 +3,7 @@
  * the LICENSE file in the root folder for details. Copyright (c) 2016
  *
  * Developed by: The Cognitive Computation Group University of Illinois at Urbana-Champaign
- * http://cogcomp.cs.illinois.edu/
+ * http://cogcomp.org/
  */
 package edu.illinois.cs.cogcomp.annotation;
 
@@ -41,6 +41,35 @@ public class BasicTextAnnotationBuilder implements TextAnnotationBuilder {
         return createTextAnnotationFromTokens("", "", tokenizedSentences);
     }
 
+
+    /**
+     * A way to create a {@link TextAnnotation} from pre-tokenized text from Python
+     *
+     * @param tokenizedSentences A list of sentences, each one being an list of tokens
+     * @return A {@link TextAnnotation} containing the SENTENCE and TOKENS views.
+     */
+    public static TextAnnotation createTextAnnotationFromListofListofTokens(List<List<Object>> tokenizedSentences) {
+        // This function takes List<List<Object>> to be able to run with cogcomp-nlpy (using pyjnius)
+        // Convert the inner lists to String arrays
+        // Call the default TextAnnotation builder function
+
+        List<String[]> tokenizedSentences_formatted = new ArrayList<String[]>();
+
+        // Converting inner list to array
+        for (List<Object> sentence : tokenizedSentences) {
+            String[] sentence_array = new String[sentence.size()];
+            int token_idx = 0;
+            for (Object w : sentence) {
+                sentence_array[token_idx] = (String) w;
+                token_idx += 1;
+            }
+            tokenizedSentences_formatted.add(sentence_array);
+        }
+
+        return createTextAnnotationFromTokens("", "", tokenizedSentences_formatted);
+    }
+
+
     /**
      * The default way to create a {@link TextAnnotation} from pre-tokenized text.
      * 
@@ -50,11 +79,12 @@ public class BasicTextAnnotationBuilder implements TextAnnotationBuilder {
     public static TextAnnotation createTextAnnotationFromTokens(String corpusId, String textId,
             List<String[]> tokenizedSentences) {
         Tokenization tokenization = tokenizeTextSpan(tokenizedSentences);
-        String text = "";
+        StringBuilder text = new StringBuilder();
         for (String[] sentenceTokens : tokenizedSentences)
-            text += StringUtils.join(sentenceTokens, ' ') + System.lineSeparator();
+            text.append(StringUtils.join(sentenceTokens, ' '))
+                    .append(System.lineSeparator());
 
-        return new TextAnnotation(corpusId, textId, text, tokenization.getCharacterOffsets(),
+        return new TextAnnotation(corpusId, textId, text.toString(), tokenization.getCharacterOffsets(),
                 tokenization.getTokens(), tokenization.getSentenceEndTokenIndexes());
     }
 

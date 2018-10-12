@@ -3,7 +3,7 @@
  * the LICENSE file in the root folder for details. Copyright (c) 2016
  *
  * Developed by: The Cognitive Computation Group University of Illinois at Urbana-Champaign
- * http://cogcomp.cs.illinois.edu/
+ * http://cogcomp.org/
  */
 package edu.illinois.cs.cogcomp.nlp.tokenizer;
 
@@ -152,7 +152,8 @@ public class StatefullTokenizerTest {
         IntPair notOffsets = new IntPair(42, 45);
         assertEquals(notOffsets, tokenOffsets[notIndex]);
         int intolerantIndex = 14;
-        IntPair intolerantOffsets = new IntPair(77, 87);
+        int lineSepLength = System.lineSeparator().length();
+        IntPair intolerantOffsets = new IntPair(76 + lineSepLength, 86 + lineSepLength);
         assertEquals(intolerantOffsets, tokenOffsets[intolerantIndex]);
     }
     
@@ -378,7 +379,18 @@ public class StatefullTokenizerTest {
         Tokenizer.Tokenization tknzn = tkr.tokenizeTextSpan(text);
         assertEquals(tknzn.getTokens().length, 6);
     }
-    
+
+    /**
+     * Test sentence splitter behavior when a there is a lower cased acronym followed immediately by a dot.
+     */
+    @Test
+    public void testLowerCaseAcronymEndWithDot(){
+        TokenizerTextAnnotationBuilder tab =
+                new TokenizerTextAnnotationBuilder(new StatefulTokenizer(true, true));
+        String text = "I was born in Urbana, Il. in 1992.";
+        TextAnnotation ta = tab.createTextAnnotation(text);
+        assertEquals(ta.getNumberOfSentences(), 1);
+    }
     /**
      * This can be used to just quickly debug when a sentence produces an error.
      * @param args

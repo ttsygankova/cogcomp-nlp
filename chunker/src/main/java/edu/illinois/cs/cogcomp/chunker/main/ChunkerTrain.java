@@ -3,7 +3,7 @@
  * the LICENSE file in the root folder for details. Copyright (c) 2016
  *
  * Developed by: The Cognitive Computation Group University of Illinois at Urbana-Champaign
- * http://cogcomp.cs.illinois.edu/
+ * http://cogcomp.org/
  */
 package edu.illinois.cs.cogcomp.chunker.main;
 
@@ -11,18 +11,16 @@ package edu.illinois.cs.cogcomp.chunker.main;
 import edu.illinois.cs.cogcomp.chunker.main.lbjava.ChunkLabel;
 import edu.illinois.cs.cogcomp.chunker.main.lbjava.Chunker;
 import edu.illinois.cs.cogcomp.chunker.utils.CoNLL2000Parser;
+import edu.illinois.cs.cogcomp.core.io.IOUtils;
 import edu.illinois.cs.cogcomp.core.utilities.configuration.ResourceManager;
-import edu.illinois.cs.cogcomp.lbjava.classify.TestDiscrete;
 import edu.illinois.cs.cogcomp.lbjava.nlp.seg.BIOTester;
 import edu.illinois.cs.cogcomp.lbjava.parse.ChildrenFromVectors;
 import edu.illinois.cs.cogcomp.lbjava.parse.LinkedVector;
 import edu.illinois.cs.cogcomp.lbjava.parse.Parser;
-import edu.illinois.cs.cogcomp.core.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.lang.Math;
 /**
  * Trains chunker models with user specified labeled data in the CoNLL2000 format. Similar to
  * POSTrain.java.
@@ -30,10 +28,10 @@ import java.lang.Math;
  * @author James Chen
  */
 public class ChunkerTrain {
-    private int iter; // Number of iterations to be used when training the chunker
-    private Chunker chunker;
+    protected int iter; // Number of iterations to be used when training the chunker
+    protected Chunker chunker;
     private ResourceManager rm;
-    private static final Logger logger = LoggerFactory.getLogger(ChunkerTrain.class);
+    protected static final Logger logger = LoggerFactory.getLogger(ChunkerTrain.class);
 
     public ChunkerTrain() {
         this(50);
@@ -81,7 +79,7 @@ public class ChunkerTrain {
      */
     public void trainModelsWithParser(Parser parser) {
         Chunker.isTraining = true;
-
+        chunker.forget();
         // Run the learner
         for (int i = 1; i <= iter; i++) {
             LinkedVector ex;
@@ -99,6 +97,7 @@ public class ChunkerTrain {
 
     public void trainModelsWithParser(Parser parser, String modeldir, String modelname, double dev_ratio) {
         Chunker.isTraining = true;
+        chunker.forget();
         double tmpF1 = 0;
         double bestF1 = 0;
         int bestIter = 0;
@@ -109,16 +108,11 @@ public class ChunkerTrain {
         // Get the total number of training set
         int cnt = 0;
         LinkedVector ex;
-        while ((ex = (LinkedVector) parser.next()) != null) {
-            cnt++;
-        }
+        while (parser.next() != null) cnt++;
         parser.reset();
         // Get the boundary between train and dev
+        dev_ratio = Math.min(1,Math.max(dev_ratio,0));
         long idx = Math.round(cnt*(1-dev_ratio));
-        if( idx < 0 )
-            idx = 0;
-        if( idx > cnt )
-            idx = cnt;
 
         // Run the learner and save F1 for each iteration
         for (int i = 1; i <= iter; i++) {
@@ -127,10 +121,8 @@ public class ChunkerTrain {
                 for (int j = 0; j < ex.size(); j++) {
                     chunker.learn(ex.get(j));
                 }
-                if(cnt>=idx)
-                    break;
-                else
-                    cnt++;
+                if(cnt>=idx) break;
+                cnt++;
             }
             chunker.doneWithRound();
             writeModelsToDisk(modeldir,modelname);
@@ -155,6 +147,7 @@ public class ChunkerTrain {
         System.out.println("Best #Iter = "+bestIter+" (F1="+bestF1+")");
         System.out.println("Rerun the learner using best #Iter...");
         // Rerun the learner
+        chunker.forget();
         for (int i = 1; i <= bestIter; i++) {
             while ((ex = (LinkedVector) parser.next()) != null) {
                 for (int j = 0; j < ex.size(); j++) {
